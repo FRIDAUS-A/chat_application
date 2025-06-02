@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models.base import db
 from models.user import User
 from models.chat import Chat
+from utils import encrypt_aes, decrypt_aes, generate_key_iv
 from flask_migrate import Migrate
 import jwt
 from datetime import datetime, timezone, timedelta
@@ -24,6 +25,8 @@ app.config["SQLALCHEMY_DATABASE_URI"] = f"mysql+mysqlconnector://{user}:{passwor
 # initialize the app with the extension
 db.init_app(app)
 migrate = Migrate(app, db)
+
+key, iv = generate_key_iv()
 
 def token_required(f):
     @wraps(f)
@@ -116,7 +119,9 @@ def dashboard(user, email=None, to_email=None):
             ((Chat.message_from == email) & (Chat.message_to == user.email))
         ).order_by(Chat.created_at.asc()).all()
             length = len(chats)
-            print("length: ", len(chats))
+            for chat in chats:
+                chat.message = decrypt_aes(chat.message, key, iv)
+            print(chats)
             return render_template("dashboard.html", users=users, my_email= user.email, to_email=to_email, chats=chats, length=length)
         if request.method == "POST":
             # to_user = User.query.filter_by(email=email.strip()).first()
@@ -125,7 +130,7 @@ def dashboard(user, email=None, to_email=None):
                 chat_id=str(uuid.uuid4()),
                 message_from=user.email,
                 message_to=email,
-                message=message_text,
+                message=str(encrypt_aes(message_text, key, iv)),
             )
             db.session.add(new_chat)
             db.session.commit()
