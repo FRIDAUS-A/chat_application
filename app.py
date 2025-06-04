@@ -42,7 +42,7 @@ def token_required(f):
             current_user = User.query.filter_by(user_id=data['user_id']).first()
         except:
             # return jsonify({'message': 'Token is invalid!'}), 401
-            return render_template('/', message="Token is Invalid!")
+            return render_template('login.html', message="Token is Invalid!")
 
         return f(current_user, *args, **kwargs)
 
